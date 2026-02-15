@@ -38,8 +38,8 @@ function delay(ms: number): Promise<void> {
   return new Promise(r => setTimeout(r, ms));
 }
 
-export default function SimControls() {
-  const { moveCount, foundationCount, isWin, newGame } = useGameState();
+export default function SimControls({ bridgeId = 'simulate' }: { bridgeId?: string }) {
+  const { moveCount, foundationCount, isWin, newGame } = useGameState(bridgeId);
   const [seed, setSeed] = useState('42');
   const [playing, setPlaying] = useState(false);
   const [result, setResult] = useState<'win' | 'stuck' | null>(null);
@@ -58,7 +58,7 @@ export default function SimControls() {
 
     // Start new game via direct callback (bypasses stale event listeners)
     const s = parseInt(seed) || 0;
-    const bridge = getGameBridge();
+    const bridge = getGameBridge(bridgeId);
     const newGameFn = bridge.newGameCallback;
     if (newGameFn) {
       newGameFn(s);

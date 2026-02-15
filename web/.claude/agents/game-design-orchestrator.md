@@ -72,6 +72,14 @@ Orchestrator는 직접 문서를 작성하지 않는다.
 - 판정 항목 → 판정 근거와 함께 적합한 에이전트에게 위임
 - 토론 기록 → Orchestrator가 직접 작성 (전 라운드 출력 보존)
 
+## 후속 문서 생성: PRD & TRD
+
+GDD 문서화가 완료된 후, Doc Agent를 Task로 스폰하여 PRD와 TRD를 자동 생성한다.
+
+1. GDD 문서 작성 위임(Task)이 모두 완료된 후 실행
+2. Doc Agent를 스폰: `"GDD 키워드: {keyword}. web/docs/gdd/{keyword}/ 의 GDD를 읽고 PRD와 TRD를 생성하라."`
+3. 생성된 문서 목록을 사용자에게 보고
+
 ## 주의사항
 
 - 에이전트 간 직접 통신이 아닌, Orchestrator를 통한 중계 방식

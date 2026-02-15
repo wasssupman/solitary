@@ -8,7 +8,7 @@ export default function SimulatePage() {
     <div className="flex flex-col h-screen">
       <SimControls />
       <div className="flex-1 relative">
-        <PhaserGame />
+        <PhaserGame mode="simulate" bridgeId="simulate" />
       </div>
     </div>
   );

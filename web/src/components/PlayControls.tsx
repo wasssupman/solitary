@@ -6,10 +6,10 @@ import { useSolver } from '../hooks/useSolver';
 import { useTheme } from '../hooks/useTheme';
 import { getGameBridge } from '../game/bridge/GameBridge';
 
-export default function PlayControls() {
-  const { moveCount, foundationCount, elapsed, isWin, newGame, undo } = useGameState();
-  const { requestHint, hinting } = useSolver();
-  const { themeId, setTheme, themes } = useTheme();
+export default function PlayControls({ bridgeId = 'play' }: { bridgeId?: string }) {
+  const { moveCount, foundationCount, elapsed, isWin, newGame, undo } = useGameState(bridgeId);
+  const { requestHint, hinting } = useSolver(bridgeId);
+  const { themeId, setTheme, themes } = useTheme(bridgeId);
 
   const formatTime = (s: number) => {
     const m = Math.floor(s / 60);
@@ -19,13 +19,13 @@ export default function PlayControls() {
 
   const triggerHint = useCallback(() => {
     if (hinting || isWin) return;
-    const state = getGameBridge().solverState;
+    const state = getGameBridge(bridgeId).solverState;
     if (state) requestHint(state as Parameters<typeof requestHint>[0]);
   }, [hinting, isWin, requestHint]);
 
   // Listen for keyboard hint request
   useEffect(() => {
-    const bridge = getGameBridge();
+    const bridge = getGameBridge(bridgeId);
     bridge.on('requestHintFromUI', triggerHint);
     return () => bridge.off('requestHintFromUI', triggerHint);
   }, [triggerHint]);

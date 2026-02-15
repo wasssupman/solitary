@@ -18,6 +18,13 @@ export default function Home() {
             <span className="text-emerald-200 text-sm">Classic Klondike with hints</span>
           </Link>
           <Link
+            href="/defense"
+            className="flex flex-col items-center rounded-xl bg-indigo-700 px-8 py-5 text-center transition-colors hover:bg-indigo-600"
+          >
+            <span className="text-2xl mb-1">Defense</span>
+            <span className="text-indigo-200 text-sm">Solitaire meets tower defense</span>
+          </Link>
+          <Link
             href="/simulate"
             className="flex flex-col items-center rounded-xl border border-zinc-600 px-8 py-5 text-center transition-colors hover:bg-zinc-800"
           >

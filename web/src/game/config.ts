@@ -1,5 +1,7 @@
 import Phaser from 'phaser';
-import { TableScene } from './scenes/TableScene';
+import { PlayScene } from './scenes/PlayScene';
+import { SimulateScene } from './scenes/SimulateScene';
+import { DefenseScene } from './scenes/DefenseScene';
 
 export function createGameConfig(width: number, height: number): Phaser.Types.Core.GameConfig {
   return {
@@ -14,6 +16,9 @@ export function createGameConfig(width: number, height: number): Phaser.Types.Co
       pixelArt: false,
       antialias: true,
     },
-    scene: [TableScene],
+    // Scenes are added manually — no auto-start (avoids double create on restart)
+    scene: [],
   };
 }
+
+export { PlayScene, SimulateScene, DefenseScene };

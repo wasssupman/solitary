@@ -32,11 +32,14 @@ export class CardRenderer {
         g.lineStyle(1, theme.cardBorderColor, 1);
         g.strokeRoundedRect(0, 0, cardW, cardH, cornerR);
 
+        if (scene.textures.exists(key)) scene.textures.remove(key);
         g.generateTexture(key, cardW, cardH);
         g.destroy();
 
         // Now add text via a render texture
-        const rt = scene.textures.createCanvas(key + '_full', cardW, cardH);
+        const fullKey = key + '_full';
+        if (scene.textures.exists(fullKey)) scene.textures.remove(fullKey);
+        const rt = scene.textures.createCanvas(fullKey, cardW, cardH);
         if (!rt) continue;
         const ctx = rt.getContext();
 
@@ -121,6 +124,7 @@ export class CardRenderer {
     bg.lineStyle(2, theme.cardBackBorderColor, 0.8);
     bg.strokeRoundedRect(inset, inset, cardW - inset * 2, cardH - inset * 2, cornerR);
 
+    if (scene.textures.exists('card_back')) scene.textures.remove('card_back');
     bg.generateTexture('card_back', cardW, cardH);
     bg.destroy();
 

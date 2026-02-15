@@ -13,7 +13,7 @@ export class LayoutManager {
   readonly faceDownOverlap: number;
   readonly faceUpOverlap: number;
 
-  constructor(width: number, height: number) {
+  constructor(width: number, height: number, yOffset: number = 0) {
     this.canvasW = width;
     this.canvasH = height;
 
@@ -24,7 +24,7 @@ export class LayoutManager {
     this.cardHeight = Math.round(this.cardWidth * 1.4); // 2.5:3.5 ratio
 
     this.colGap = this.cardWidth + Math.floor(this.cardWidth * 0.08);
-    this.topMargin = 12;
+    this.topMargin = 12 + yOffset;
 
     // Center the 7 columns horizontally
     const totalW = this.colGap * 6 + this.cardWidth;

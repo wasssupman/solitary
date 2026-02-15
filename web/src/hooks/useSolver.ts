@@ -4,11 +4,6 @@ import { useState, useCallback, useRef } from 'react';
 import { getGameBridge } from '../game/bridge/GameBridge';
 import type { SerializedState, SerializedMove } from '../solver/workerProtocol';
 
-/**
- * Run the solver directly in the main thread for a quick hint.
- * Uses dynamic import to avoid SSR issues with solver modules.
- * Wrapped in setTimeout(0) so React can flush "Thinking..." first.
- */
 function runHintDirect(state: SerializedState, maxTime: number): Promise<SerializedMove | null> {
   return new Promise((resolve) => {
     setTimeout(async () => {
@@ -46,9 +41,6 @@ function runHintDirect(state: SerializedState, maxTime: number): Promise<Seriali
   });
 }
 
-/**
- * Try Worker-based solve; falls back to main thread if Worker fails.
- */
 function createWorker(): Worker | null {
   try {
     const worker = new Worker(
@@ -62,7 +54,7 @@ function createWorker(): Worker | null {
   }
 }
 
-export function useSolver() {
+export function useSolver(bridgeId = 'default') {
   const [hinting, setHinting] = useState(false);
   const [solving, setSolving] = useState(false);
   const hintingRef = useRef(false);
@@ -75,7 +67,7 @@ export function useSolver() {
     try {
       const move = await runHintDirect(state, 2);
       if (move) {
-        const cb = getGameBridge().showHintCallback;
+        const cb = getGameBridge(bridgeId).showHintCallback;
         if (cb) cb(move);
       }
     } catch (err) {
@@ -84,7 +76,7 @@ export function useSolver() {
       hintingRef.current = false;
       setHinting(false);
     }
-  }, []);
+  }, [bridgeId]);
 
   const solve = useCallback(async (
     state: SerializedState,
@@ -96,7 +88,6 @@ export function useSolver() {
     solvingRef.current = true;
     setSolving(true);
     try {
-      // Try Worker first
       const worker = createWorker();
       if (worker) {
         return await new Promise((resolve, reject) => {
