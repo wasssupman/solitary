@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+.venv/
+venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude Code
+.claude/settings.local.json
+.claude/debug/
+.claude/file-history/
+.claude/todos/
+.claude/cache/
+.claude/image-cache/
+.claude/history.jsonl
+.claude/stats-cache.json
+.claude/.session-stats.json
+.claude/.omc-config.json
+
+# oh-my-claudecode
+.omc/
+.sisyphus/
+
+# Profiling
+*.prof
+*.pstats
