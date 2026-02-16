@@ -25,6 +25,13 @@ export default function Home() {
             <span className="text-indigo-200 text-sm">Solitaire meets tower defense</span>
           </Link>
           <Link
+            href="/survivors"
+            className="flex flex-col items-center rounded-xl bg-rose-700 px-8 py-5 text-center transition-colors hover:bg-rose-600"
+          >
+            <span className="text-2xl mb-1">Survivors</span>
+            <span className="text-rose-200 text-sm">Solitaire meets Vampire Survivors</span>
+          </Link>
+          <Link
             href="/simulate"
             className="flex flex-col items-center rounded-xl border border-zinc-600 px-8 py-5 text-center transition-colors hover:bg-zinc-800"
           >

@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import PhaserGame from '../../components/PhaserGame';
 import DefenseControls from '../../components/DefenseControls';
+import HomeButton from '../../components/HomeButton';
 import { getGameBridge } from '../../game/bridge/GameBridge';
 
 export default function DefensePage() {
@@ -28,7 +29,8 @@ export default function DefensePage() {
   }, []);
 
   return (
-    <div className="flex flex-col h-screen">
+    <div className="flex flex-col h-screen relative">
+      <HomeButton />
       <DefenseControls bridgeId="defense" />
       <div className="flex-1 relative">
         <PhaserGame mode="defense" bridgeId="defense" />

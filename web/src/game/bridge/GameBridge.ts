@@ -91,6 +91,7 @@ export class GameBridge {
       'showHint', 'getState', 'simMove', 'newGame', 'undo', 'setTheme',
       'defenseStateChanged', 'endCardPhase', 'startBattle', 'setBattleSpeed', 'deployUnit',
       'replayLoaded', 'replayProgress', 'finalizeRecording',
+      'survivorsStateChanged',
     ];
     for (const ev of sceneEvents) {
       this.listeners.delete(ev);
