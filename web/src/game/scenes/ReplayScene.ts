@@ -7,28 +7,28 @@ import { ThemeManager } from '../rendering/ThemeManager';
 import { CardMovementRunner } from '../movement/CardMovementRunner';
 import { CardSprite } from '../objects/CardSprite';
 import { getGameBridge } from '../bridge/GameBridge';
-import { GameRecorder } from '../recording/GameRecorder';
-import { RecordingStorage } from '../recording/RecordingStorage';
 import { ActionType, type Move } from '../../solver/types';
 import type { PileType } from '../movement/CardMovementData';
+import type { GameRecording } from '../recording/types';
+import type { SerializedMove } from '../../solver/workerProtocol';
 
-export class SimulateScene extends Phaser.Scene {
+export class ReplayScene extends Phaser.Scene {
   private layout!: LayoutManager;
   private core!: SolitaireCore;
   private sprites!: SpriteManager;
   private themeManager!: ThemeManager;
   private moveRunner!: CardMovementRunner;
-  private recorder!: GameRecorder;
 
-  private initialSeed?: number;
   private bridgeId = 'default';
+  private recording: GameRecording | null = null;
+  private actionIndex = 0;
+  private placeholderText: Phaser.GameObjects.Text | null = null;
 
   constructor() {
-    super({ key: 'SimulateScene' });
+    super({ key: 'ReplayScene' });
   }
 
-  init(data?: { seed?: number; bridgeId?: string }): void {
-    this.initialSeed = data?.seed;
+  init(data?: { bridgeId?: string }): void {
     this.bridgeId = data?.bridgeId ?? 'default';
   }
 
@@ -36,64 +36,44 @@ export class SimulateScene extends Phaser.Scene {
     const { width, height } = this.scale;
     this.layout = new LayoutManager(width, height);
 
-    // Core
     this.core = new SolitaireCore();
 
-    // Theme
     this.themeManager = new ThemeManager(this, this.layout, null as unknown as SpriteManager);
     this.themeManager.loadSaved();
     this.cameras.main.setBackgroundColor(this.themeManager.theme.tableColor);
 
-    // Textures
     CardRenderer.generateTextures(this, this.layout.cardWidth, this.layout.cardHeight, this.themeManager.theme);
 
-    // Sprites
     this.sprites = new SpriteManager(this, this.layout, this.themeManager.theme);
-    this.sprites.createPileZones();
+    // Don't create pile zones yet — wait until a recording is loaded
 
-    // Fix ThemeManager's sprite reference
     (this.themeManager as unknown as { sprites: SpriteManager }).sprites = this.sprites;
 
-    // Movement
     this.moveRunner = new CardMovementRunner(this, this.layout, () => {
       this.sprites.rebuild(this.core.state);
     });
 
-    // Core event subscriptions
-    this.core.on('moveExecuted', () => {
-      this.syncBridge();
-    });
-
-    this.core.on('stockDrawn', () => {
-      this.syncBridge();
-    });
-
+    this.core.on('moveExecuted', () => this.syncBridge());
+    this.core.on('stockDrawn', () => this.syncBridge());
+    this.core.on('newGame', () => this.syncBridge());
     this.core.on('gameWon', () => {
       const bridge = getGameBridge(this.bridgeId);
       bridge.emit('gameWon');
-      const rec = this.recorder.finalize('win');
-      if (rec) RecordingStorage.save(rec);
     });
 
-    this.core.on('newGame', () => {
-      this.syncBridge();
+    // Placeholder text
+    this.placeholderText = this.add.text(width / 2, height / 2, 'Select a recording above', {
+      fontSize: '24px',
+      color: '#ffffff66',
+      fontFamily: 'sans-serif',
     });
+    this.placeholderText.setOrigin(0.5, 0.5);
 
-    // Recorder
-    this.recorder = new GameRecorder(this.core, 'simulate');
-
-    // Start game
-    this.core.newGame(this.initialSeed);
-    this.sprites.buildFromState(this.core.state);
-
-    // Wire bridge
     this.wireBridge();
 
-    // Resize
     this.scale.on('resize', (gameSize: Phaser.Structs.Size) => {
       this.handleResize(gameSize.width, gameSize.height);
     });
-
   }
 
   private syncBridge(): void {
@@ -105,43 +85,19 @@ export class SimulateScene extends Phaser.Scene {
   private wireBridge(): void {
     const bridge = getGameBridge(this.bridgeId);
 
-    bridge.on('finalizeRecording', (result: unknown) => {
-      if (!this.sys) return;
-      const rec = this.recorder.finalize(result as 'win' | 'loss' | 'abandoned');
-      if (rec) RecordingStorage.save(rec);
-    });
-
-    bridge.newGameCallback = (seed?: number) => {
+    bridge.loadRecordingCallback = (recording: unknown) => {
       try {
         if (!this.scene?.isActive()) return;
-        const rec = this.recorder.finalize('abandoned');
-        if (rec) RecordingStorage.save(rec);
-        this.sprites.clearAll();
-        this.sprites.tableauSprites = [[], [], [], [], [], [], []];
-        this.sprites.foundationSprites = [[], [], [], []];
-        this.sprites.stockSprites = [];
-        this.sprites.wasteSprites = [];
-        this.core.newGame(seed);
-        this.sprites.buildFromState(this.core.state);
-      } catch { /* Scene partially destroyed */ }
+        this.loadRecording(recording as GameRecording);
+      } catch (e) { console.error('ReplayScene.loadRecording failed:', e); }
     };
 
-    bridge.applySimMoveCallback = (move: unknown) => {
+    bridge.replayStepCallback = () => {
       try {
         if (!this.scene?.isActive()) return;
-        this.applySolverMove(move as Move);
-      } catch { /* Scene partially destroyed */ }
+        this.stepForward();
+      } catch (e) { console.error('ReplayScene.stepForward failed:', e); }
     };
-
-    bridge.on('simMove', (move: unknown) => {
-      if (!this.sys) return;
-      if (move) this.applySolverMove(move as Move);
-    });
-
-    bridge.on('getState', (callback: unknown) => {
-      if (!this.sys) return;
-      if (typeof callback === 'function') callback(this.core.getSerializableState());
-    });
 
     bridge.applyThemeCallback = (themeId: string) => {
       try {
@@ -154,20 +110,64 @@ export class SimulateScene extends Phaser.Scene {
       if (!this.sys) return;
       if (typeof themeId === 'string') this.themeManager.apply(themeId, this.core.state);
     });
-
-    bridge.sceneCleanupCallback = () => {
-      const rec = this.recorder.finalize('abandoned');
-      if (rec) RecordingStorage.save(rec);
-      this.recorder.destroy();
-    };
-
-    // Initial state sync
-    this.syncBridge();
   }
 
-  private applySolverMove(move: Move): void {
-    if (this.moveRunner.isAnimating) { this.moveRunner.fastForward(); }
+  private loadRecording(recording: GameRecording): void {
+    this.recording = recording;
+    this.actionIndex = 0;
 
+    // Remove placeholder
+    if (this.placeholderText) {
+      this.placeholderText.destroy();
+      this.placeholderText = null;
+    }
+
+    this.sprites.clearAll();
+    this.sprites.tableauSprites = [[], [], [], [], [], [], []];
+    this.sprites.foundationSprites = [[], [], [], []];
+    this.sprites.stockSprites = [];
+    this.sprites.wasteSprites = [];
+
+    // Now create pile zones (first load or re-load)
+    this.sprites.createPileZones();
+
+    this.core.newGame(recording.seed);
+    this.sprites.buildFromState(this.core.state);
+
+    const bridge = getGameBridge(this.bridgeId);
+    bridge.emit('replayLoaded', {
+      totalActions: recording.actions.length,
+      seed: recording.seed,
+      sourceMode: recording.sourceMode,
+      result: recording.result,
+    });
+    bridge.emit('replayProgress', { current: 0, total: recording.actions.length });
+  }
+
+  private stepForward(): void {
+    if (!this.recording) return;
+    if (this.actionIndex >= this.recording.actions.length) return;
+
+    const action = this.recording.actions[this.actionIndex];
+    this.actionIndex++;
+
+    if (action.type === 'move') {
+      this.applyReplayMove(action.move);
+    } else if (action.type === 'stockDraw') {
+      this.applyStockDraw();
+    }
+
+    const bridge = getGameBridge(this.bridgeId);
+    bridge.emit('replayProgress', {
+      current: this.actionIndex,
+      total: this.recording.actions.length,
+    });
+  }
+
+  private applyReplayMove(sm: SerializedMove): void {
+    if (this.moveRunner.isAnimating) this.moveRunner.fastForward();
+
+    const move = sm as unknown as Move;
     const at = Number(move.actionType);
 
     // Handle stock turns first
@@ -217,7 +217,6 @@ export class SimulateScene extends Phaser.Scene {
       toPile = 'tableau';
     }
 
-    // Execute move on core
     this.core.executeMove(move);
 
     if (movingSprites.length === 0) {
@@ -225,16 +224,26 @@ export class SimulateScene extends Phaser.Scene {
       return;
     }
 
-    // Compute end positions & animate
     const endPositions = this.sprites.computeEndPositions(toPile, toIndex, movingSprites.length, this.core.state);
     this.moveRunner.runMove(movingSprites, fromPile as PileType, fromIndex, toPile as PileType, toIndex, endPositions, flipSprite);
+  }
+
+  private applyStockDraw(): void {
+    if (this.moveRunner.isAnimating) this.moveRunner.fastForward();
+    this.core.drawStock();
+    this.sprites.rebuild(this.core.state);
   }
 
   private handleResize(width: number, height: number): void {
     this.layout = new LayoutManager(width, height);
     this.moveRunner.updateLayout(this.layout);
     this.sprites.updateLayout(this.layout);
-    this.sprites.createPileZones();
-    this.sprites.reposition(this.core.state);
+    if (this.recording) {
+      this.sprites.createPileZones();
+      this.sprites.reposition(this.core.state);
+    }
+    if (this.placeholderText) {
+      this.placeholderText.setPosition(width / 2, height / 2);
+    }
   }
 }

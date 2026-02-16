@@ -45,6 +45,17 @@ export class GameBridge {
   /** Direct callback to apply a theme change. Set by scene, cleared on destroy. */
   applyThemeCallback: ((themeId: string) => void) | null = null;
 
+  // ── Replay Mode Callbacks ──
+
+  /** Load a recording into ReplayScene. */
+  loadRecordingCallback: ((recording: unknown) => void) | null = null;
+
+  /** Step one action forward in replay. */
+  replayStepCallback: (() => void) | null = null;
+
+  /** Called by React cleanup before game.destroy() to finalize recordings etc. */
+  sceneCleanupCallback: (() => void) | null = null;
+
   // ── Defense Mode Callbacks ──
 
   /** End card phase and transition to deploy. */
@@ -79,6 +90,7 @@ export class GameBridge {
     const sceneEvents = [
       'showHint', 'getState', 'simMove', 'newGame', 'undo', 'setTheme',
       'defenseStateChanged', 'endCardPhase', 'startBattle', 'setBattleSpeed', 'deployUnit',
+      'replayLoaded', 'replayProgress', 'finalizeRecording',
     ];
     for (const ev of sceneEvents) {
       this.listeners.delete(ev);

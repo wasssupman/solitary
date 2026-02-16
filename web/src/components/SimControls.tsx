@@ -82,7 +82,10 @@ export default function SimControls({ bridgeId = 'simulate' }: { bridgeId?: stri
       // Solve for one move
       const move = await solveOneMove(state as SerializedState, 2);
       if (!move || cancelRef.current) {
-        if (!cancelRef.current) setResult('stuck');
+        if (!cancelRef.current) {
+          setResult('stuck');
+          bridge.emit('finalizeRecording', 'loss');
+        }
         break;
       }
 

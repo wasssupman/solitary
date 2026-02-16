@@ -31,6 +31,13 @@ export default function Home() {
             <span className="text-2xl mb-1">Simulate</span>
             <span className="text-zinc-400 text-sm">Watch AI solve games</span>
           </Link>
+          <Link
+            href="/replay"
+            className="flex flex-col items-center rounded-xl border border-zinc-600 px-8 py-5 text-center transition-colors hover:bg-zinc-800"
+          >
+            <span className="text-2xl mb-1">Replay</span>
+            <span className="text-zinc-400 text-sm">Watch recorded games</span>
+          </Link>
         </div>
 
         <p className="text-zinc-600 text-xs">

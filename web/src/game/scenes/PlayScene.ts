@@ -9,6 +9,8 @@ import { WinEffectRenderer } from '../effects/WinEffectRenderer';
 import { ThemeManager } from '../rendering/ThemeManager';
 import { CardMovementRunner } from '../movement/CardMovementRunner';
 import { getGameBridge } from '../bridge/GameBridge';
+import { GameRecorder } from '../recording/GameRecorder';
+import { RecordingStorage } from '../recording/RecordingStorage';
 import type { Move } from '../../solver/types';
 import type { PileType } from '../movement/CardMovementData';
 
@@ -21,6 +23,7 @@ export class PlayScene extends Phaser.Scene {
   private winEffect!: WinEffectRenderer;
   private themeManager!: ThemeManager;
   private moveRunner!: CardMovementRunner;
+  private recorder!: GameRecorder;
 
   private initialSeed?: number;
   private bridgeId = 'default';
@@ -100,6 +103,8 @@ export class PlayScene extends Phaser.Scene {
     this.core.on('gameWon', () => {
       const bridge = getGameBridge(this.bridgeId);
       bridge.emit('gameWon');
+      const rec = this.recorder.finalize('win');
+      if (rec) RecordingStorage.save(rec);
     });
 
     this.core.on('undone', () => {
@@ -113,6 +118,9 @@ export class PlayScene extends Phaser.Scene {
       this.syncBridge();
     });
 
+    // Recorder
+    this.recorder = new GameRecorder(this.core, 'play');
+
     // Start game
     this.core.newGame(this.initialSeed);
     this.sprites.buildFromState(this.core.state);
@@ -125,6 +133,7 @@ export class PlayScene extends Phaser.Scene {
     this.scale.on('resize', (gameSize: Phaser.Structs.Size) => {
       this.handleResize(gameSize.width, gameSize.height);
     });
+
   }
 
   private syncBridge(): void {
@@ -139,6 +148,8 @@ export class PlayScene extends Phaser.Scene {
     bridge.newGameCallback = (seed?: number) => {
       try {
         if (!this.scene?.isActive()) return;
+        const rec = this.recorder.finalize('abandoned');
+        if (rec) RecordingStorage.save(rec);
         this.hints.clear();
         if (this.sprites.stockClickZone) {
           this.sprites.stockClickZone.destroy();
@@ -188,6 +199,12 @@ export class PlayScene extends Phaser.Scene {
         this.interaction.enable();
       }
     });
+
+    bridge.sceneCleanupCallback = () => {
+      const rec = this.recorder.finalize('abandoned');
+      if (rec) RecordingStorage.save(rec);
+      this.recorder.destroy();
+    };
 
     // Initial state sync
     this.syncBridge();

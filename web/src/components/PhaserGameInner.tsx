@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import Phaser from 'phaser';
-import { createGameConfig, PlayScene, SimulateScene, DefenseScene } from '../game/config';
+import { createGameConfig, PlayScene, SimulateScene, DefenseScene, ReplayScene } from '../game/config';
 import { getGameBridge } from '../game/bridge/GameBridge';
 
 function getDpr(): number {
@@ -10,7 +10,7 @@ function getDpr(): number {
 }
 
 interface Props {
-  mode?: 'play' | 'simulate' | 'defense';
+  mode?: 'play' | 'simulate' | 'defense' | 'replay';
   bridgeId?: string;
 }
 
@@ -37,8 +37,8 @@ export default function PhaserGameInner({ mode = 'play', bridgeId = 'default' }:
     gameRef.current = game;
 
     // Add and start only the scene needed for this mode (no auto-start, no restart)
-    const SceneClass = mode === 'simulate' ? SimulateScene : mode === 'defense' ? DefenseScene : PlayScene;
-    const sceneKey = mode === 'simulate' ? 'SimulateScene' : mode === 'defense' ? 'DefenseScene' : 'PlayScene';
+    const SceneClass = mode === 'simulate' ? SimulateScene : mode === 'defense' ? DefenseScene : mode === 'replay' ? ReplayScene : PlayScene;
+    const sceneKey = mode === 'simulate' ? 'SimulateScene' : mode === 'defense' ? 'DefenseScene' : mode === 'replay' ? 'ReplayScene' : 'PlayScene';
 
     game.events.once('ready', () => {
       game.scene.add(sceneKey, SceneClass, true, { bridgeId });
@@ -75,6 +75,10 @@ export default function PhaserGameInner({ mode = 'play', bridgeId = 'default' }:
       }
 
       const bridge = getGameBridge(bridgeId);
+      if (bridge.sceneCleanupCallback) {
+        bridge.sceneCleanupCallback();
+      }
+      bridge.sceneCleanupCallback = null;
       bridge.showHintCallback = null;
       bridge.applySimMoveCallback = null;
       bridge.newGameCallback = null;
@@ -83,6 +87,8 @@ export default function PhaserGameInner({ mode = 'play', bridgeId = 'default' }:
       bridge.startBattleCallback = null;
       bridge.setBattleSpeedCallback = null;
       bridge.deployUnitCallback = null;
+      bridge.loadRecordingCallback = null;
+      bridge.replayStepCallback = null;
       bridge.clearSceneListeners();
 
       if (gameRef.current) {
