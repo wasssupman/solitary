@@ -1,4 +1,4 @@
-# [Project Report] Solitary — AI 솔버 기반 클론다이크 솔리테어
+Solitaire — AI 솔버 기반 클론다이크 솔리테어
 
 ## 1. 프로젝트 개요
 * **프로젝트명**: Solitary
