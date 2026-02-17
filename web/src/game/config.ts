@@ -19,6 +19,9 @@ export function createGameConfig(width: number, height: number): Phaser.Types.Co
       pixelArt: false,
       antialias: true,
     },
+    input: {
+      touch: { capture: true },
+    },
     // Scenes are added manually — no auto-start (avoids double create on restart)
     scene: [],
   };
