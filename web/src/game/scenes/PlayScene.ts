@@ -39,7 +39,7 @@ export class PlayScene extends Phaser.Scene {
 
   create(): void {
     const { width, height } = this.scale;
-    this.layout = new LayoutManager(width, height);
+    this.layout = new LayoutManager(width, height, 20);
 
     // Core (pure logic)
     this.core = new SolitaireCore();
@@ -211,7 +211,7 @@ export class PlayScene extends Phaser.Scene {
   }
 
   private handleResize(width: number, height: number): void {
-    this.layout = new LayoutManager(width, height);
+    this.layout = new LayoutManager(width, height, 20);
     this.moveRunner.updateLayout(this.layout);
     this.sprites.updateLayout(this.layout);
     this.sprites.createPileZones();
