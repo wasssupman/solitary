@@ -1,0 +1,118 @@
+name: Agent - Create Game Mode
+
+on:
+  workflow_dispatch:
+    inputs:
+      prompt:
+        description: 'Game mode description prompt'
+        required: true
+        type: string
+      request_id:
+        description: 'Unique request identifier'
+        required: true
+        type: string
+
+concurrency:
+  group: agent-create
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  create-mode:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies
+        run: cd web && npm ci
+
+      - name: Install Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Generate game mode with Claude
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          claude -p "$(cat <<'PROMPT_EOF'
+          You are creating a new game mode for a Klondike Solitaire web app.
+
+          REQUEST: ${{ github.event.inputs.prompt }}
+          REQUEST_ID: ${{ github.event.inputs.request_id }}
+
+          ## Project Context
+          - Framework: Next.js 16 + React 19 + TypeScript + Phaser 3
+          - Existing modes: play, simulate, defense, replay, survivors
+          - Each mode has: a Phaser Scene, a Next.js page route, a controls component, docs (GDD/PRD/TRD)
+
+          ## Reference Files (read these first to understand patterns)
+          - web/src/game/scenes/PlayScene.ts (base scene pattern)
+          - web/src/game/scenes/DefenseScene.ts (game mode scene pattern)
+          - web/src/game/config.ts (scene exports)
+          - web/src/components/PhaserGameInner.tsx (mode registration)
+          - web/src/app/play/page.tsx (page route pattern)
+          - web/src/app/page.tsx (home page with mode links)
+          - web/src/components/PlayControls.tsx (controls pattern)
+
+          ## What to Create
+          1. **GDD** at web/docs/gdd/<mode-name>/gdd.md — game design overview
+          2. **PRD** at web/docs/prd/<mode-name>/prd.md — product requirements
+          3. **TRD** at web/docs/trd/<mode-name>/trd.md — technical requirements
+          4. **Phaser Scene** at web/src/game/scenes/<ModeName>Scene.ts
+          5. **Page route** at web/src/app/<mode-name>/page.tsx
+          6. **Controls component** at web/src/components/<ModeName>Controls.tsx
+
+          ## What to Modify
+          1. **web/src/components/PhaserGameInner.tsx**:
+             - Add new mode to the Props `mode` union type (line 13)
+             - Add SceneClass ternary (line 40)
+             - Add sceneKey ternary (line 41)
+          2. **web/src/game/config.ts**:
+             - Import the new Scene
+             - Add to the export statement
+          3. **web/src/app/page.tsx**:
+             - Add a Link card for the new mode on the home page (use a unique color from tailwind palette)
+
+          ## Rules
+          - Mode name should be kebab-case for URLs, PascalCase for classes
+          - Scene must extend Phaser.Scene with proper create/update lifecycle
+          - Scene constructor must accept bridgeId in data config
+          - Page must use dynamic import of PhaserGameInner with ssr: false
+          - Follow existing code style exactly
+          - Make sure the game is actually playable and fun
+          - npm run build must pass after your changes
+          PROMPT_EOF
+          )" --allowedTools "Read,Write,Edit,Glob,Grep,Bash" --max-turns 50
+
+      - name: Build verification
+        run: cd web && npm run build
+
+      - name: Commit and push
+        run: |
+          git config user.name "claude-agent[bot]"
+          git config user.email "claude-agent[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git commit -m "feat: add new game mode via agent
+
+          Request: ${{ github.event.inputs.prompt }}
+          Request ID: ${{ github.event.inputs.request_id }}
+
+          Co-Authored-By: Claude <noreply@anthropic.com>"
+          git push
