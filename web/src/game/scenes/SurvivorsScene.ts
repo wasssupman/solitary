@@ -14,7 +14,6 @@ import { HintRenderer } from '../effects/HintRenderer';
 import { ThemeManager } from '../rendering/ThemeManager';
 import { SpriteManager } from '../sprites/SpriteManager';
 import { showFloatingText, showDamageNumber } from '../objects/DamageNumber';
-import { GlitchFXPipeline } from '../effects/GlitchFXPipeline';
 import { getGameBridge } from '../bridge/GameBridge';
 import type { Move } from '../../solver/types';
 import type { PileType } from '../movement/CardMovementData';
@@ -64,12 +63,6 @@ export class SurvivorsScene extends Phaser.Scene {
 
   create(): void {
     const { width, height } = this.scale;
-
-    // Register custom PostFX pipelines (WebGL only)
-    const renderer = this.game.renderer;
-    if (renderer instanceof Phaser.Renderer.WebGL.WebGLRenderer && renderer.pipelines) {
-      renderer.pipelines.addPostPipeline('GlitchFX', GlitchFXPipeline);
-    }
 
     // Layout
     this.layout = new SurvivorsLayoutManager(width, height);

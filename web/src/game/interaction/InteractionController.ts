@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { CardSprite } from '../objects/CardSprite';
+import { GlitchFXPipeline } from '../effects/GlitchFXPipeline';
 import { LayoutManager } from '../rendering/LayoutManager';
 import type { SpriteManager } from '../sprites/SpriteManager';
 import type { SolitaireCore } from '../core/SolitaireCore';
@@ -20,6 +21,10 @@ interface DragData {
 export class InteractionController {
   private dragData: DragData | null = null;
   private dropResolver: DropTargetResolver;
+  private dragEmitters: Phaser.GameObjects.Particles.ParticleEmitter[] = [];
+  private dragGlowFrames: Phaser.GameObjects.Graphics[] = [];
+  private glowTween: Phaser.Tweens.Tween | null = null;
+  private glitchRegistered = false;
 
   constructor(
     private scene: Phaser.Scene,
@@ -170,6 +175,8 @@ export class InteractionController {
         cards, originX, originY, originDepths,
         sourcePile: pile, sourceIndex: pileIndex, cardIndex,
       };
+
+      this.startDragEffects(cards);
     });
 
     sprite.on('drag', (_p: unknown, dragX: number, dragY: number) => {
@@ -180,9 +187,11 @@ export class InteractionController {
         this.dragData.cards[i].x = this.dragData.originX[i] + dx;
         this.dragData.cards[i].y = this.dragData.originY[i] + dy;
       }
+      this.updateDragGlowPositions();
     });
 
     sprite.on('dragend', () => {
+      this.stopDragEffects();
       if (!this.dragData) return;
       const dd = this.dragData;
       this.dragData = null;
@@ -323,5 +332,119 @@ export class InteractionController {
   updateLayout(layout: LayoutManager): void {
     this.layout = layout;
     this.dropResolver.updateLayout(layout);
+  }
+
+  // ── Drag visual effects (glow + glitch) ──
+
+  private startDragEffects(cards: CardSprite[]): void {
+    // Register glitch post-pipeline once
+    const renderer = this.scene.game.renderer;
+    if (!this.glitchRegistered && renderer instanceof Phaser.Renderer.WebGL.WebGLRenderer && renderer.pipelines) {
+      renderer.pipelines.addPostPipeline('GlitchFX', GlitchFXPipeline);
+      this.glitchRegistered = true;
+    }
+
+    const cw = this.layout.cardWidth;
+    const ch = this.layout.cardHeight;
+    const pad = 6;
+    const cornerR = Math.round(cw * 0.08);
+    const glowColor = 0xffd700; // gold
+
+    for (const sprite of cards) {
+      // Particle glow trail
+      if (this.scene.textures.exists('particle_glow')) {
+        const emitter = this.scene.add.particles(0, 0, 'particle_glow', {
+          speed: { min: 8, max: 35 },
+          lifespan: { min: 250, max: 450 },
+          scale: { start: 0.7, end: 0 },
+          alpha: { start: 0.85, end: 0 },
+          blendMode: 'ADD',
+          frequency: 16,
+          quantity: 2,
+          radial: true,
+          rotate: { min: 0, max: 360 },
+        });
+        emitter.setDepth(10001);
+        emitter.startFollow(sprite);
+        this.dragEmitters.push(emitter);
+      }
+
+      // Glow frame around card
+      const glow = this.scene.add.graphics();
+      glow.setDepth(sprite.depth - 1);
+      for (let i = 3; i >= 1; i--) {
+        const p = pad * i;
+        glow.lineStyle(2, glowColor, 0.15 * i);
+        glow.strokeRoundedRect(
+          -(cw / 2 + p), -(ch / 2 + p),
+          cw + p * 2, ch + p * 2,
+          cornerR + p,
+        );
+      }
+      glow.lineStyle(2, glowColor, 0.9);
+      glow.strokeRoundedRect(
+        -(cw / 2 + 1), -(ch / 2 + 1),
+        cw + 2, ch + 2,
+        cornerR,
+      );
+      glow.setPosition(sprite.x, sprite.y);
+      this.dragGlowFrames.push(glow);
+
+      // Glitch post-FX on each card
+      if (this.glitchRegistered) {
+        sprite.setPostPipeline('GlitchFX');
+      }
+    }
+
+    // Pulsing alpha on glow frames
+    if (this.dragGlowFrames.length > 0) {
+      this.glowTween = this.scene.tweens.add({
+        targets: this.dragGlowFrames,
+        alpha: { from: 1, to: 0.4 },
+        duration: 600,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      });
+    }
+  }
+
+  private updateDragGlowPositions(): void {
+    if (!this.dragData || this.dragGlowFrames.length === 0) return;
+    for (let i = 0; i < this.dragData.cards.length; i++) {
+      const glow = this.dragGlowFrames[i];
+      if (glow) {
+        glow.setPosition(this.dragData.cards[i].x, this.dragData.cards[i].y);
+        glow.setDepth(this.dragData.cards[i].depth - 1);
+      }
+    }
+  }
+
+  private stopDragEffects(): void {
+    // Remove glitch post-FX from dragged cards
+    if (this.dragData) {
+      for (const sprite of this.dragData.cards) {
+        sprite.removePostPipeline('GlitchFX');
+      }
+    }
+
+    // Remove glow tween
+    if (this.glowTween) {
+      this.glowTween.destroy();
+      this.glowTween = null;
+    }
+
+    // Remove glow frames
+    for (const glow of this.dragGlowFrames) {
+      glow.destroy();
+    }
+    this.dragGlowFrames = [];
+
+    // Remove particle emitters
+    for (const emitter of this.dragEmitters) {
+      emitter.stop();
+      emitter.destroy();
+    }
+    this.dragEmitters = [];
   }
 }
