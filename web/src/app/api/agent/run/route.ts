@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 
 const GITHUB_PAT = process.env.GITHUB_PAT!;
 const REPO_OWNER = 'wasssupman';
-const REPO_NAME = 'solitary';
+const REPO_NAME = 'solitaire-wassup';
 const WORKFLOW_FILE = 'agent-create-mode.yml';
 
 export async function POST(request: Request) {
