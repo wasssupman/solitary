@@ -178,7 +178,7 @@ export default function AgentChatbot() {
 
       {/* Chat panel */}
       {open && (
-        <div className="fixed bottom-24 right-6 z-50 flex h-[480px] w-[380px] flex-col rounded-2xl border border-zinc-700 bg-zinc-900 shadow-2xl">
+        <div className="fixed inset-2 z-50 flex flex-col rounded-2xl border border-zinc-700 bg-zinc-900 shadow-2xl sm:inset-auto sm:bottom-24 sm:right-6 sm:h-[480px] sm:w-[380px]">
           {/* Header */}
           <div className="flex items-center justify-between border-b border-zinc-700 px-4 py-3">
             <div className="flex items-center gap-2">
@@ -218,7 +218,7 @@ export default function AgentChatbot() {
                   type="password"
                   value={apiKey}
                   onChange={(e) => setApiKey(e.target.value)}
-                  placeholder="Enter your agent API key"
+                  placeholder="wassupman"
                   className="flex-1 rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-1.5 text-sm text-white placeholder-zinc-500 outline-none focus:border-zinc-500"
                   onKeyDown={(e) => e.key === 'Enter' && handleSaveKey()}
                 />
@@ -236,10 +236,17 @@ export default function AgentChatbot() {
           <div className="flex-1 overflow-y-auto px-4 py-3">
             {messages.length === 0 && (
               <div className="flex h-full items-center justify-center">
-                <div className="text-center text-sm text-zinc-500">
-                  <p className="mb-2">사용 가능한 명령어:</p>
-                  <p>• <strong>모드!</strong> — 새로운 게임 모드 생성</p>
-                  <p>• <strong>개선!</strong> — 기존 모드 버그 수정/개선</p>
+                <div className="text-center text-sm text-zinc-500 space-y-3">
+                  <div>
+                    <p className="mb-1 font-medium text-zinc-400">사용 가능한 명령어</p>
+                    <p>• <strong>모드!</strong> — 새로운 게임 모드 생성</p>
+                    <p>• <strong>개선!</strong> — 기존 모드 버그 수정/개선</p>
+                  </div>
+                  <div className="border-t border-zinc-800 pt-3 text-zinc-600">
+                    <p className="mb-1 text-xs">예시:</p>
+                    <p className="text-xs">모드! 솔리테어 + 타이머 스피드런</p>
+                    <p className="text-xs">개선! 디펜스 모드 밸런스 조정</p>
+                  </div>
                 </div>
               </div>
             )}
