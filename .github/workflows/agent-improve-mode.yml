@@ -102,3 +102,15 @@ jobs:
 
           Co-Authored-By: Claude <noreply@anthropic.com>"
           git push
+
+      - name: Deploy to Vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          npm install -g vercel
+          cd web
+          DEPLOY_URL=$(vercel --prod --public -y --token "$VERCEL_TOKEN" 2>&1 | grep -oP 'https://\S+\.vercel\.app' | tail -1)
+          vercel alias set "$DEPLOY_URL" solitaire-hunter.vercel.app --token "$VERCEL_TOKEN"
+          echo "Deployed: https://solitaire-hunter.vercel.app"
