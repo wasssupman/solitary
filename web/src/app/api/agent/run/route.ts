@@ -74,31 +74,29 @@ export async function POST(request: Request) {
       );
     }
 
-    // Wait briefly for the run to appear
-    await new Promise((r) => setTimeout(r, 3000));
+    // Poll for the workflow run (GitHub API can take several seconds to register)
+    let run: { id: number; html_url: string; status: string } | undefined;
+    for (let attempt = 0; attempt < 4; attempt++) {
+      await new Promise((r) => setTimeout(r, 3000));
 
-    // Find the workflow run
-    const runsRes = await fetch(
-      `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/actions/workflows/${parsed.workflow}/runs?per_page=5&event=workflow_dispatch`,
-      {
-        headers: {
-          Authorization: `Bearer ${GITHUB_PAT}`,
-          Accept: 'application/vnd.github.v3+json',
+      const runsRes = await fetch(
+        `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/actions/workflows/${parsed.workflow}/runs?per_page=5&event=workflow_dispatch`,
+        {
+          headers: {
+            Authorization: `Bearer ${GITHUB_PAT}`,
+            Accept: 'application/vnd.github.v3+json',
+          },
         },
-      },
-    );
-
-    if (!runsRes.ok) {
-      return NextResponse.json(
-        { requestId, runId: null, commandType: parsed.commandType, message: 'Workflow triggered but could not fetch run ID' },
-        { status: 202 },
       );
-    }
 
-    const runsData = await runsRes.json();
-    const run = runsData.workflow_runs?.find(
-      (r: { status: string }) => r.status === 'queued' || r.status === 'in_progress',
-    );
+      if (!runsRes.ok) continue;
+
+      const runsData = await runsRes.json();
+      run = runsData.workflow_runs?.find(
+        (r: { status: string }) => r.status === 'queued' || r.status === 'in_progress',
+      );
+      if (run) break;
+    }
 
     return NextResponse.json({
       requestId,
