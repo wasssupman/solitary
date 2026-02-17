@@ -31,7 +31,7 @@ export default function PlayPage() {
     <div className="flex flex-col h-screen relative">
       <HomeButton />
       <PlayControls />
-      <div className="flex-1 relative pt-5">
+      <div className="flex-1 relative pt-8">
         <PhaserGame mode="play" bridgeId="play" />
       </div>
     </div>
