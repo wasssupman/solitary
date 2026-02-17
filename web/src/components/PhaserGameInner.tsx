@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import Phaser from 'phaser';
-import { createGameConfig, PlayScene, SimulateScene, DefenseScene, ReplayScene, SurvivorsScene } from '../game/config';
+import { createGameConfig, PlayScene, SimulateScene, DefenseScene, ReplayScene, SurvivorsScene, RandDiceScene } from '../game/config';
 import { getGameBridge } from '../game/bridge/GameBridge';
 
 function getDpr(): number {
@@ -10,7 +10,7 @@ function getDpr(): number {
 }
 
 interface Props {
-  mode?: 'play' | 'simulate' | 'defense' | 'replay' | 'survivors';
+  mode?: 'play' | 'simulate' | 'defense' | 'replay' | 'survivors' | 'rand-dice';
   bridgeId?: string;
 }
 
@@ -37,8 +37,8 @@ export default function PhaserGameInner({ mode = 'play', bridgeId = 'default' }:
     gameRef.current = game;
 
     // Add and start only the scene needed for this mode (no auto-start, no restart)
-    const SceneClass = mode === 'simulate' ? SimulateScene : mode === 'defense' ? DefenseScene : mode === 'replay' ? ReplayScene : mode === 'survivors' ? SurvivorsScene : PlayScene;
-    const sceneKey = mode === 'simulate' ? 'SimulateScene' : mode === 'defense' ? 'DefenseScene' : mode === 'replay' ? 'ReplayScene' : mode === 'survivors' ? 'SurvivorsScene' : 'PlayScene';
+    const SceneClass = mode === 'simulate' ? SimulateScene : mode === 'defense' ? DefenseScene : mode === 'replay' ? ReplayScene : mode === 'survivors' ? SurvivorsScene : mode === 'rand-dice' ? RandDiceScene : PlayScene;
+    const sceneKey = mode === 'simulate' ? 'SimulateScene' : mode === 'defense' ? 'DefenseScene' : mode === 'replay' ? 'ReplayScene' : mode === 'survivors' ? 'SurvivorsScene' : mode === 'rand-dice' ? 'RandDiceScene' : 'PlayScene';
 
     game.events.once('ready', () => {
       game.scene.add(sceneKey, SceneClass, true, { bridgeId });

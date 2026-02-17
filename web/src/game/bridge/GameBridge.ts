@@ -92,6 +92,7 @@ export class GameBridge {
       'defenseStateChanged', 'endCardPhase', 'startBattle', 'setBattleSpeed', 'deployUnit',
       'replayLoaded', 'replayProgress', 'finalizeRecording',
       'survivorsStateChanged',
+      'randDiceStateChanged',
     ];
     for (const ev of sceneEvents) {
       this.listeners.delete(ev);

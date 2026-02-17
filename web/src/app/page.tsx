@@ -32,6 +32,13 @@ export default function Home() {
             <span className="text-rose-200 text-sm">Solitaire meets Vampire Survivors</span>
           </Link>
           <Link
+            href="/rand-dice"
+            className="flex flex-col items-center rounded-xl bg-amber-700 px-8 py-5 text-center transition-colors hover:bg-amber-600"
+          >
+            <span className="text-2xl mb-1">Rand Dice</span>
+            <span className="text-amber-200 text-sm">Solitaire with lucky dice rolls</span>
+          </Link>
+          <Link
             href="/simulate"
             className="flex flex-col items-center rounded-xl border border-zinc-600 px-8 py-5 text-center transition-colors hover:bg-zinc-800"
           >

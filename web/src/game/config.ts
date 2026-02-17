@@ -4,6 +4,7 @@ import { SimulateScene } from './scenes/SimulateScene';
 import { DefenseScene } from './scenes/DefenseScene';
 import { ReplayScene } from './scenes/ReplayScene';
 import { SurvivorsScene } from './scenes/SurvivorsScene';
+import { RandDiceScene } from './scenes/RandDiceScene';
 
 export function createGameConfig(width: number, height: number): Phaser.Types.Core.GameConfig {
   return {
@@ -23,4 +24,4 @@ export function createGameConfig(width: number, height: number): Phaser.Types.Co
   };
 }
 
-export { PlayScene, SimulateScene, DefenseScene, ReplayScene, SurvivorsScene };
+export { PlayScene, SimulateScene, DefenseScene, ReplayScene, SurvivorsScene, RandDiceScene };
