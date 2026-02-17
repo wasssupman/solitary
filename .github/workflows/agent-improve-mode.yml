@@ -1,0 +1,104 @@
+name: Agent - Improve Game Mode
+
+on:
+  workflow_dispatch:
+    inputs:
+      prompt:
+        description: 'Improvement or bug fix description'
+        required: true
+        type: string
+      request_id:
+        description: 'Unique request identifier'
+        required: true
+        type: string
+
+concurrency:
+  group: agent-improve
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  improve-mode:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'web/package-lock.json'
+
+      - name: Install dependencies
+        run: cd web && npm ci
+
+      - name: Install Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Improve game mode with Claude
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          claude -p "$(cat <<'PROMPT_EOF'
+          You are improving or fixing an existing game mode for a Klondike Solitaire web app.
+
+          REQUEST: ${{ github.event.inputs.prompt }}
+          REQUEST_ID: ${{ github.event.inputs.request_id }}
+
+          ## Project Context
+          - Framework: Next.js 16 + React 19 + TypeScript + Phaser 3
+          - Existing modes: play, simulate, defense, replay, survivors
+          - Each mode has: a Phaser Scene, a Next.js page route, a controls component, docs (GDD/PRD/TRD)
+
+          ## Reference Structure
+          - Scenes: web/src/game/scenes/<ModeName>Scene.ts
+          - Pages: web/src/app/<mode-name>/page.tsx
+          - Controls: web/src/components/<ModeName>Controls.tsx
+          - Docs: web/docs/{gdd,prd,trd}/<mode-name>/
+
+          ## Process
+          1. READ the request — identify which mode to improve/fix
+          2. EXPLORE the mode's files (Scene, page, controls, docs)
+          3. UNDERSTAND the issue before making changes
+          4. IMPLEMENT the minimum necessary fix/improvement
+          5. npm run build must pass
+
+          ## Constraints
+          FIRST, read web/.claude/skills/game-mode-constraint/SKILL.md and follow ALL constraints listed there.
+          Additionally: Do NOT create new modes — only modify existing files.
+
+          ## Rules
+          - Follow existing code style exactly
+          - Prefer targeted edits over wholesale rewrites
+          - Keep changes minimal and focused on the request
+          - npm run build must pass after your changes
+          PROMPT_EOF
+          )" --allowedTools "Read,Write,Edit,Glob,Grep,Bash" --max-turns 50
+
+      - name: Build verification
+        run: cd web && npm run build
+
+      - name: Commit and push
+        run: |
+          git config user.name "claude-agent[bot]"
+          git config user.email "claude-agent[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git commit -m "fix: improve game mode via agent
+
+          Request: ${{ github.event.inputs.prompt }}
+          Request ID: ${{ github.event.inputs.request_id }}
+
+          Co-Authored-By: Claude <noreply@anthropic.com>"
+          git push
