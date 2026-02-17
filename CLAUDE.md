@@ -57,10 +57,17 @@ User action / Solver move
 ```
 
 ## Commands
+All commands run from `web/` directory:
 ```bash
 npm run dev          # Dev server (port 3000)
 npm run build        # Production build
 npm test             # Solver unit tests (npx tsx test-solver.ts)
+```
+
+### Deploy
+**Must run from `web/`** (`.vercel/project.json` lives there):
+```bash
+cd web
 vercel --prod --public && vercel alias set solitaire-hunter.vercel.app  # Deploy (public, no auth)
 ```
 
