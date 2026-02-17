@@ -106,8 +106,9 @@ export class CardMovementRunner {
     if (this._fastForwarded) return;
 
     // 6. Flip the revealed card if needed
-    if (flipSprite) {
+    if (flipSprite && flipSprite.scene?.tweens) {
       flipSprite.flip(true, true);
+      if (!this.scene?.time) return;
       await new Promise<void>(resolve => {
         this.scene.time.delayedCall(200, resolve);
       });

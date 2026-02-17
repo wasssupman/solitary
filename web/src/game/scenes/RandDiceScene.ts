@@ -54,6 +54,13 @@ export class RandDiceScene extends Phaser.Scene {
   private modifierText!: Phaser.GameObjects.Text;
   private frenzyOverlay!: Phaser.GameObjects.Rectangle;
 
+  // Visual effect objects
+  private frenzyBorder: Phaser.GameObjects.Graphics | null = null;
+  private shieldGraphic: Phaser.GameObjects.Graphics | null = null;
+  private jackpotGlows: Phaser.GameObjects.Graphics[] = [];
+  private diceGlowCircle!: Phaser.GameObjects.Arc;
+  private prevScore = 0;
+
   // Bonus draw in progress guard (prevents recursive roll on stock event)
   private isBonusDraw = false;
 
@@ -165,7 +172,7 @@ export class RandDiceScene extends Phaser.Scene {
     // Frenzy: consume a free move instead of rolling
     if (this.diceState.frenzyMovesLeft > 0) {
       this.diceState.frenzyMovesLeft--;
-      this.updateDiceCount();
+      this.showFrenzyCountdown();
       this.updateHUD();
       return;
     }
@@ -174,6 +181,7 @@ export class RandDiceScene extends Phaser.Scene {
     this.diceState.lastRoll = roll;
     this.applyModifier(roll);
     this.animateDice(roll);
+    this.showRollFeedback(roll);
     this.updateHUD();
   }
 
@@ -182,16 +190,20 @@ export class RandDiceScene extends Phaser.Scene {
       case 1: // Stumble
         if (this.diceState.shieldActive) {
           this.diceState.shieldActive = false;
+          this.cameras.main.shake(100, 0.003);
+          this.showShieldBreak();
         } else {
           this.applyStumble();
+          this.cameras.main.shake(200, 0.008);
         }
         break;
 
       case 2: // Slow (visual only — shield absorbs)
         if (this.diceState.shieldActive) {
           this.diceState.shieldActive = false;
+          this.cameras.main.shake(100, 0.003);
+          this.showShieldBreak();
         }
-        // else: cosmetic slow, no state change
         break;
 
       case 3: // Bonus Draw
@@ -200,6 +212,7 @@ export class RandDiceScene extends Phaser.Scene {
 
       case 4: // Shield
         this.diceState.shieldActive = true;
+        this.showShieldAcquire();
         break;
 
       case 5: // Frenzy
@@ -209,6 +222,8 @@ export class RandDiceScene extends Phaser.Scene {
 
       case 6: // Jackpot
         this.diceState.jackpotActive = true;
+        this.cameras.main.shake(150, 0.005);
+        this.showJackpotGlow();
         break;
     }
   }
@@ -249,10 +264,6 @@ export class RandDiceScene extends Phaser.Scene {
     this.interaction.refresh();
   }
 
-  private updateDiceCount(): void {
-    // Called during frenzy to update frenzy moves remaining in HUD without a new roll
-  }
-
   // ── Foundation Score Tracking ───────────────────────────────────────────────
 
   private countFoundation(): number {
@@ -268,6 +279,7 @@ export class RandDiceScene extends Phaser.Scene {
       this.diceState.score += pts * placed;
       if (this.diceState.jackpotActive) {
         this.diceState.jackpotActive = false;
+        this.clearJackpotGlows();
         this.showJackpotText();
       }
       this.diceState.foundationCount = current;
@@ -296,6 +308,10 @@ export class RandDiceScene extends Phaser.Scene {
     this.modifierText = this.add.text(width - 8, y, '', {
       ...textStyle, color: '#58a6ff',
     }).setOrigin(1, 0.5).setDepth(9600);
+
+    // Glow circle behind dice text (hidden by default)
+    this.diceGlowCircle = this.add.circle(width / 2, y, 24, 0xffffff, 0)
+      .setDepth(9550).setVisible(false);
   }
 
   private updateHUD(): void {
@@ -303,7 +319,24 @@ export class RandDiceScene extends Phaser.Scene {
 
     this.checkFoundationScoring();
 
+    const scoreChanged = this.diceState.score !== this.prevScore;
     this.scoreText.setText(`Score: ${this.diceState.score}`);
+
+    if (scoreChanged && this.prevScore > 0) {
+      this.tweens.add({
+        targets: this.scoreText,
+        scaleX: 1.3,
+        scaleY: 1.3,
+        duration: 100,
+        yoyo: true,
+        ease: 'Quad.easeOut',
+      });
+      if (this.diceState.jackpotActive || this.diceState.lastRoll === 6) {
+        this.scoreText.setColor('#ffd700');
+        this.time.delayedCall(400, () => this.scoreText?.setColor('#ffffff'));
+      }
+    }
+    this.prevScore = this.diceState.score;
 
     if (this.diceState.lastRoll !== null) {
       const faces = ['', '1', '2', '3', '4', '5', '6'];
@@ -357,22 +390,60 @@ export class RandDiceScene extends Phaser.Scene {
         const faces = ['1', '2', '3', '4', '5', '6'];
         this.diceText.setText(`[ ${faces[Math.floor(Math.random() * 6)]} ]`);
         this.diceText.setColor('#ffffff');
+        // Scale bounce per tick
+        this.tweens.add({
+          targets: this.diceText,
+          scaleX: 1.4,
+          scaleY: 1.4,
+          duration: 20,
+          yoyo: true,
+        });
       },
     });
 
-    // After animation, set final value (done by updateHUD called after rollDice)
+    // After animation, set final value
     this.time.delayedCall(total * 40 + 50, () => {
       const colors: Record<number, string> = {
         1: '#e74c3c', 2: '#95a5a6', 3: '#2ecc71', 4: '#3498db', 5: '#ff6b00', 6: '#ffd700',
       };
+      const color = colors[finalRoll] ?? '#ffffff';
       this.diceText.setText(`[ ${finalRoll} ]`);
-      this.diceText.setColor(colors[finalRoll] ?? '#ffffff');
+      this.diceText.setColor(color);
+
+      // Big scale punch on final result
+      this.tweens.add({
+        targets: this.diceText,
+        scaleX: 1.8,
+        scaleY: 1.8,
+        duration: 150,
+        yoyo: true,
+        ease: 'Quad.easeOut',
+      });
+
+      // Glow circle flash behind dice
+      if (this.diceGlowCircle) {
+        const colorNum = parseInt(color.replace('#', ''), 16);
+        this.diceGlowCircle.setFillStyle(colorNum, 0.4).setVisible(true).setScale(1).setAlpha(1);
+        this.tweens.add({
+          targets: this.diceGlowCircle,
+          alpha: 0,
+          scaleX: 2,
+          scaleY: 2,
+          duration: 400,
+          onComplete: () => {
+            this.diceGlowCircle?.setVisible(false).setScale(1).setAlpha(1);
+          },
+        });
+      }
+
       this.updateHUD();
     });
   }
 
   private showFrenzyEffect(): void {
     if (!this.frenzyOverlay) return;
+
+    // Overlay pulse
     this.frenzyOverlay.setVisible(true);
     this.frenzyOverlay.setAlpha(0.15);
     this.tweens.add({
@@ -382,6 +453,203 @@ export class RandDiceScene extends Phaser.Scene {
       yoyo: true,
       repeat: 2,
     });
+
+    // Border glow pulse
+    this.showFrenzyBorder();
+
+    // Large "FRENZY" popup
+    const { width, height } = this.scale;
+    const frenzyLabel = this.add.text(width / 2, height / 2 - 60, 'FRENZY!', {
+      fontSize: '40px', color: '#ff6b00', fontFamily: 'monospace', fontStyle: 'bold',
+    }).setOrigin(0.5).setDepth(9999).setAlpha(0).setScale(0.5);
+
+    this.tweens.add({
+      targets: frenzyLabel,
+      alpha: 1,
+      scaleX: 1.2,
+      scaleY: 1.2,
+      duration: 300,
+      ease: 'Back.easeOut',
+      onComplete: () => {
+        this.tweens.add({
+          targets: frenzyLabel,
+          alpha: 0,
+          y: height / 2 - 100,
+          duration: 800,
+          delay: 400,
+          onComplete: () => frenzyLabel.destroy(),
+        });
+      },
+    });
+  }
+
+  private showFrenzyBorder(): void {
+    this.clearFrenzyBorder();
+    const { width, height } = this.scale;
+    const g = this.add.graphics().setDepth(8500);
+    g.lineStyle(4, 0xff6b00, 0.7);
+    g.strokeRect(2, 2, width - 4, height - 4);
+    this.frenzyBorder = g;
+    this.tweens.add({
+      targets: g,
+      alpha: { from: 0.3, to: 0.8 },
+      duration: 500,
+      yoyo: true,
+      repeat: -1,
+    });
+  }
+
+  private clearFrenzyBorder(): void {
+    if (this.frenzyBorder) {
+      this.tweens.killTweensOf(this.frenzyBorder);
+      this.frenzyBorder.destroy();
+      this.frenzyBorder = null;
+    }
+  }
+
+  private showFrenzyCountdown(): void {
+    const { width } = this.scale;
+    const left = this.diceState.frenzyMovesLeft;
+    const label = left > 0 ? `${left} LEFT` : 'FRENZY END';
+    const color = left > 0 ? '#ff6b00' : '#e74c3c';
+
+    const text = this.add.text(width / 2, 65, label, {
+      fontSize: '20px', color, fontFamily: 'monospace', fontStyle: 'bold',
+    }).setOrigin(0.5).setDepth(9999);
+
+    this.tweens.add({
+      targets: text,
+      y: 25,
+      alpha: 0,
+      duration: 800,
+      ease: 'Power2',
+      onComplete: () => text.destroy(),
+    });
+
+    // Clear frenzy border when frenzy ends
+    if (left === 0) {
+      this.clearFrenzyBorder();
+    }
+  }
+
+  // ── Roll Feedback ───────────────────────────────────────────────────────────
+
+  private showRollFeedback(roll: number): void {
+    const { width } = this.scale;
+    const names: Record<number, string> = {
+      1: 'STUMBLE', 2: 'SLOW', 3: 'BONUS DRAW',
+      4: 'SHIELD', 5: 'FRENZY', 6: 'JACKPOT',
+    };
+    const colors: Record<number, string> = {
+      1: '#e74c3c', 2: '#95a5a6', 3: '#2ecc71',
+      4: '#3498db', 5: '#ff6b00', 6: '#ffd700',
+    };
+
+    const text = this.add.text(width / 2, 60, names[roll], {
+      fontSize: '24px', color: colors[roll], fontFamily: 'monospace', fontStyle: 'bold',
+    }).setOrigin(0.5).setDepth(9999);
+
+    this.tweens.add({
+      targets: text,
+      y: 10,
+      alpha: 0,
+      duration: 1000,
+      ease: 'Power2',
+      onComplete: () => text.destroy(),
+    });
+  }
+
+  // ── Shield Visuals ──────────────────────────────────────────────────────────
+
+  private showShieldAcquire(): void {
+    this.clearShieldGraphic();
+    const { width } = this.scale;
+    const cx = width - 50;
+    const cy = 60;
+    const g = this.add.graphics().setDepth(9400);
+
+    // Blue shield circle
+    g.fillStyle(0x3498db, 0.3);
+    g.fillCircle(cx, cy, 18);
+    g.lineStyle(2, 0x3498db, 0.8);
+    g.strokeCircle(cx, cy, 18);
+
+    // Shield chevron icon
+    g.lineStyle(3, 0xffffff, 0.9);
+    g.beginPath();
+    g.moveTo(cx - 6, cy - 6);
+    g.lineTo(cx, cy + 10);
+    g.lineTo(cx + 6, cy - 6);
+    g.closePath();
+    g.strokePath();
+
+    this.shieldGraphic = g;
+    g.setScale(0);
+    this.tweens.add({
+      targets: g,
+      scaleX: 1,
+      scaleY: 1,
+      duration: 300,
+      ease: 'Back.easeOut',
+    });
+  }
+
+  private showShieldBreak(): void {
+    if (!this.shieldGraphic) return;
+    const g = this.shieldGraphic;
+    this.shieldGraphic = null;
+    this.tweens.killTweensOf(g);
+    this.tweens.add({
+      targets: g,
+      scaleX: 1.5,
+      scaleY: 1.5,
+      alpha: 0,
+      duration: 300,
+      ease: 'Power2',
+      onComplete: () => g.destroy(),
+    });
+  }
+
+  private clearShieldGraphic(): void {
+    if (this.shieldGraphic) {
+      this.tweens.killTweensOf(this.shieldGraphic);
+      this.shieldGraphic.destroy();
+      this.shieldGraphic = null;
+    }
+  }
+
+  // ── Jackpot Foundation Glow ─────────────────────────────────────────────────
+
+  private showJackpotGlow(): void {
+    this.clearJackpotGlows();
+    for (let i = 0; i < 4; i++) {
+      const pos = this.layout.getFoundationPosition(i);
+      const g = this.add.graphics().setDepth(9300);
+      g.lineStyle(3, 0xffd700, 0.6);
+      g.strokeRoundedRect(
+        pos.x - this.layout.cardWidth / 2 - 4,
+        pos.y - this.layout.cardHeight / 2 - 4,
+        this.layout.cardWidth + 8,
+        this.layout.cardHeight + 8,
+        6,
+      );
+      this.jackpotGlows.push(g);
+      this.tweens.add({
+        targets: g,
+        alpha: { from: 0.3, to: 1 },
+        duration: 600,
+        yoyo: true,
+        repeat: -1,
+      });
+    }
+  }
+
+  private clearJackpotGlows(): void {
+    for (const g of this.jackpotGlows) {
+      this.tweens.killTweensOf(g);
+      g.destroy();
+    }
+    this.jackpotGlows = [];
   }
 
   private showJackpotText(): void {
@@ -439,6 +707,10 @@ export class RandDiceScene extends Phaser.Scene {
         this.sprites.buildFromState(this.core.state);
         this.interaction.enable();
         this.frenzyOverlay.setVisible(false);
+        this.clearFrenzyBorder();
+        this.clearShieldGraphic();
+        this.clearJackpotGlows();
+        this.prevScore = 0;
         this.updateHUD();
       } catch { /* Scene partially destroyed */ }
     };
@@ -465,5 +737,10 @@ export class RandDiceScene extends Phaser.Scene {
     this.diceText.setPosition(width / 2, y);
     this.modifierText.setPosition(width - 8, y);
     this.frenzyOverlay.setPosition(width / 2, height / 2).setSize(width, height);
+
+    // Reposition glow circle
+    if (this.diceGlowCircle) {
+      this.diceGlowCircle.setPosition(width / 2, hudH / 2);
+    }
   }
 }

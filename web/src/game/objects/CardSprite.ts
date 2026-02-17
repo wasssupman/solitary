@@ -42,7 +42,7 @@ export class CardSprite extends Phaser.GameObjects.Container {
     if (this.faceUp === faceUp) return;
     this.faceUp = faceUp;
 
-    if (!animated) {
+    if (!animated || !this.scene?.tweens) {
       this.frontImage.setVisible(faceUp);
       this.backImage.setVisible(!faceUp);
       return;
@@ -60,6 +60,7 @@ export class CardSprite extends Phaser.GameObjects.Container {
       onComplete: () => {
         showing.setVisible(false);
         hidden.setVisible(true);
+        if (!this.scene?.tweens) return;
         this.scene.tweens.add({
           targets: this,
           scaleX: 1,
