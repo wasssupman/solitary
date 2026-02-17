@@ -49,7 +49,7 @@ export class HintRenderer {
     if (srcPos) {
       const g1 = this.scene.add.graphics();
       g1.setDepth(2000);
-      g1.lineStyle(4, 0xffd700, 1);
+      g1.lineStyle(4, 0xff6b35, 1);
       g1.strokeRoundedRect(srcPos.x - hw, srcPos.y - hh, hw * 2, hh * 2, 8);
       this.hintGraphics.push(g1);
 
@@ -82,7 +82,7 @@ export class HintRenderer {
     if (destPos) {
       const g2 = this.scene.add.graphics();
       g2.setDepth(2000);
-      g2.lineStyle(4, 0x00ff88, 1);
+      g2.lineStyle(4, 0x00bfff, 1);
       g2.strokeRoundedRect(destPos.x - hw, destPos.y - hh, hw * 2, hh * 2, 8);
       this.hintGraphics.push(g2);
 
@@ -101,7 +101,7 @@ export class HintRenderer {
       const text = this.scene.add.text(
         stockPos.x, stockPos.y - ch / 2 - 16,
         `Click stock ${move.stockTurns}x`,
-        { fontSize: '12px', fontFamily: 'Arial', color: '#ffd700', align: 'center' },
+        { fontSize: '12px', fontFamily: 'Arial', color: '#ff6b35', align: 'center' },
       ).setOrigin(0.5).setDepth(2001);
       this.hintGraphics.push(text);
     }
