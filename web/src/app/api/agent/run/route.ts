@@ -3,7 +3,17 @@ import { NextResponse } from 'next/server';
 const GITHUB_PAT = process.env.GITHUB_PAT!;
 const REPO_OWNER = 'wasssupman';
 const REPO_NAME = 'solitaire-wassup';
-const WORKFLOW_FILE = 'agent-create-mode.yml';
+
+function parseCommand(raw: string): { workflow: string; prompt: string; commandType: string } | null {
+  const trimmed = raw.trim();
+  if (trimmed.startsWith('모드!')) {
+    return { workflow: 'agent-create-mode.yml', prompt: trimmed.slice(3).trim(), commandType: 'create' };
+  }
+  if (trimmed.startsWith('개선!')) {
+    return { workflow: 'agent-improve-mode.yml', prompt: trimmed.slice(3).trim(), commandType: 'improve' };
+  }
+  return null;
+}
 
 export async function POST(request: Request) {
   try {
@@ -17,11 +27,27 @@ export async function POST(request: Request) {
       );
     }
 
+    const parsed = parseCommand(prompt);
+
+    if (!parsed) {
+      return NextResponse.json(
+        { error: '지원하지 않는 기능입니다. "모드!" 또는 "개선!" 으로 시작해주세요.' },
+        { status: 400 },
+      );
+    }
+
+    if (parsed.prompt.length === 0) {
+      return NextResponse.json(
+        { error: '내용을 입력해주세요.' },
+        { status: 400 },
+      );
+    }
+
     const requestId = crypto.randomUUID();
 
     // Trigger workflow_dispatch
     const dispatchRes = await fetch(
-      `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/actions/workflows/${WORKFLOW_FILE}/dispatches`,
+      `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/actions/workflows/${parsed.workflow}/dispatches`,
       {
         method: 'POST',
         headers: {
@@ -32,7 +58,7 @@ export async function POST(request: Request) {
         body: JSON.stringify({
           ref: 'main',
           inputs: {
-            prompt: prompt.trim(),
+            prompt: parsed.prompt,
             request_id: requestId,
           },
         }),
@@ -53,7 +79,7 @@ export async function POST(request: Request) {
 
     // Find the workflow run
     const runsRes = await fetch(
-      `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/actions/workflows/${WORKFLOW_FILE}/runs?per_page=5&event=workflow_dispatch`,
+      `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/actions/workflows/${parsed.workflow}/runs?per_page=5&event=workflow_dispatch`,
       {
         headers: {
           Authorization: `Bearer ${GITHUB_PAT}`,
@@ -64,7 +90,7 @@ export async function POST(request: Request) {
 
     if (!runsRes.ok) {
       return NextResponse.json(
-        { requestId, runId: null, message: 'Workflow triggered but could not fetch run ID' },
+        { requestId, runId: null, commandType: parsed.commandType, message: 'Workflow triggered but could not fetch run ID' },
         { status: 202 },
       );
     }
@@ -79,6 +105,7 @@ export async function POST(request: Request) {
       runId: run?.id ?? null,
       htmlUrl: run?.html_url ?? null,
       status: run?.status ?? 'triggered',
+      commandType: parsed.commandType,
     });
   } catch (err) {
     console.error('Agent run error:', err);

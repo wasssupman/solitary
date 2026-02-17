@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 
 type Status = 'idle' | 'triggering' | 'running' | 'complete' | 'failed';
+type CommandType = 'create' | 'improve' | null;
 
 interface Message {
   role: 'user' | 'assistant';
@@ -21,6 +22,7 @@ export default function AgentChatbot() {
   const [showKeyInput, setShowKeyInput] = useState(false);
   const [runId, setRunId] = useState<number | null>(null);
   const [htmlUrl, setHtmlUrl] = useState<string | null>(null);
+  const [commandType, setCommandType] = useState<CommandType>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -51,7 +53,7 @@ export default function AgentChatbot() {
   }, []);
 
   const pollStatus = useCallback(
-    (rid: number) => {
+    (rid: number, cmdType: CommandType) => {
       if (pollRef.current) clearInterval(pollRef.current);
 
       pollRef.current = setInterval(async () => {
@@ -69,9 +71,12 @@ export default function AgentChatbot() {
 
             if (data.conclusion === 'success') {
               setStatus('complete');
+              const successMsg = cmdType === 'improve'
+                ? '개선이 완료되었습니다! 자동으로 배포됩니다.'
+                : '새로운 게임 모드가 생성되었습니다! 자동으로 배포됩니다.';
               addMessage(
                 'assistant',
-                `Game mode created successfully! The site will redeploy automatically.\n\n[View workflow run](${data.htmlUrl})`,
+                `${successMsg}\n\n[View workflow run](${data.htmlUrl})`,
               );
             } else {
               setStatus('failed');
@@ -111,11 +116,12 @@ export default function AgentChatbot() {
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: 'Unknown error' }));
         setStatus('failed');
-        addMessage('assistant', `Failed to trigger: ${err.error}`);
+        addMessage('assistant', err.error || 'Unknown error');
         return;
       }
 
       const data = await res.json();
+      setCommandType(data.commandType ?? null);
 
       if (data.runId) {
         setRunId(data.runId);
@@ -125,7 +131,7 @@ export default function AgentChatbot() {
           'assistant',
           `Workflow started (run #${data.runId}). Polling for completion...\n\n[Watch progress](${data.htmlUrl})`,
         );
-        pollStatus(data.runId);
+        pollStatus(data.runId, data.commandType ?? null);
       } else {
         setStatus('running');
         addMessage(
@@ -177,7 +183,7 @@ export default function AgentChatbot() {
           <div className="flex items-center justify-between border-b border-zinc-700 px-4 py-3">
             <div className="flex items-center gap-2">
               <span className={`h-2.5 w-2.5 rounded-full ${statusColor[status]}`} />
-              <span className="text-sm font-medium">Mode Generator</span>
+              <span className="text-sm font-medium">Game Agent</span>
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -193,6 +199,7 @@ export default function AgentChatbot() {
                     setStatus('idle');
                     setRunId(null);
                     setHtmlUrl(null);
+                    setCommandType(null);
                   }}
                   className="text-xs text-zinc-500 hover:text-zinc-300"
                 >
@@ -229,9 +236,11 @@ export default function AgentChatbot() {
           <div className="flex-1 overflow-y-auto px-4 py-3">
             {messages.length === 0 && (
               <div className="flex h-full items-center justify-center">
-                <p className="text-center text-sm text-zinc-500">
-                  Describe a new game mode and the agent will create it automatically.
-                </p>
+                <div className="text-center text-sm text-zinc-500">
+                  <p className="mb-2">사용 가능한 명령어:</p>
+                  <p>• <strong>모드!</strong> — 새로운 게임 모드 생성</p>
+                  <p>• <strong>개선!</strong> — 기존 모드 버그 수정/개선</p>
+                </div>
               </div>
             )}
             {messages.map((msg, i) => (
@@ -292,7 +301,7 @@ export default function AgentChatbot() {
                 placeholder={
                   status === 'running' || status === 'triggering'
                     ? 'Agent is working...'
-                    : 'Describe a new game mode...'
+                    : '모드! 또는 개선! 으로 시작하세요'
                 }
                 disabled={status === 'running' || status === 'triggering'}
                 className="flex-1 rounded-xl border border-zinc-600 bg-zinc-800 px-4 py-2.5 text-sm text-white placeholder-zinc-500 outline-none focus:border-zinc-500 disabled:opacity-50"
