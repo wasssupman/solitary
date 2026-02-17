@@ -22,7 +22,7 @@ permissions:
 jobs:
   create-mode:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
 
     steps:
       - name: Checkout
@@ -43,57 +43,70 @@ jobs:
       - name: Install Claude Code CLI
         run: npm install -g @anthropic-ai/claude-code
 
-      - name: Generate game mode with Claude
+      # Stage 1: Game Design (GDD)
+      # Agent: game-design-orchestrator → classic-rule-agent + creative-rule-agent
+      - name: "Stage 1: Game Design (GDD)"
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
         run: |
           claude -p "$(cat <<'PROMPT_EOF'
-          You are creating a new game mode for a Klondike Solitaire web app.
-
           REQUEST: ${{ github.event.inputs.prompt }}
+
+          ## Instructions
+          Read web/.claude/agents/game-design-orchestrator.md for the full process.
+          In CI you cannot spawn sub-agents, so play BOTH roles yourself:
+          1. Propose from Classic perspective (read web/.claude/agents/classic-rule-agent.md)
+          2. Propose from Creative perspective (read web/.claude/agents/creative-rule-agent.md)
+          3. Resolve conflicts and produce a unified GDD
+
+          ## Keyword
+          Extract a kebab-case keyword from the request.
+          Use this keyword for all output paths.
+
+          ## Constraints
+          Read web/.claude/skills/game-mode-constraint/SKILL.md — design must respect all constraints.
+
+          ## Output
+          Write unified GDD to web/docs/gdd/{keyword}/gdd.md
+          PROMPT_EOF
+          )" --allowedTools "Read,Write,Edit,Glob,Grep,Bash" --max-turns 20
+
+      # Stage 2: Documentation (PRD & TRD)
+      # Agent: doc-agent → generate-prd skill + generate-trd skill
+      - name: "Stage 2: Documentation (PRD & TRD)"
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          claude -p "$(cat <<'PROMPT_EOF'
+          Read web/.claude/agents/doc-agent.md for the full process.
+
+          ## Task
+          1. Find the GDD: look in web/docs/gdd/ for the most recently created directory
+          2. Read ALL GDD files in that directory
+          3. Generate PRD following web/.claude/skills/generate-prd/SKILL.md and its references/prd-template.md
+          4. Generate TRD following web/.claude/skills/generate-trd/SKILL.md and its references/trd-template.md
+          5. Write to web/docs/prd/{keyword}/prd.md and web/docs/trd/{keyword}/trd.md
+          PROMPT_EOF
+          )" --allowedTools "Read,Write,Edit,Glob,Grep,Bash" --max-turns 20
+
+      # Stage 3: Constraint Review + Implementation
+      # Agent: game-mode-creator → game-mode-constraint skill + classic-rule-agent
+      - name: "Stage 3: Constraint Review & Implementation"
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          claude -p "$(cat <<'PROMPT_EOF'
           REQUEST_ID: ${{ github.event.inputs.request_id }}
 
-          ## Project Context
-          - Framework: Next.js 16 + React 19 + TypeScript + Phaser 3
-          - Existing modes: play, simulate, defense, replay, survivors
-          - Each mode has: a Phaser Scene, a Next.js page route, a controls component, docs (GDD/PRD/TRD)
+          Read web/.claude/agents/game-mode-creator.md and follow the full workflow.
 
-          ## Reference Files (read these first to understand patterns)
-          - web/src/game/scenes/PlayScene.ts (base scene pattern)
-          - web/src/game/scenes/DefenseScene.ts (game mode scene pattern)
-          - web/src/game/config.ts (scene exports)
-          - web/src/components/PhaserGameInner.tsx (mode registration)
-          - web/src/app/play/page.tsx (page route pattern)
-          - web/src/app/page.tsx (home page with mode links)
-          - web/src/components/PlayControls.tsx (controls pattern)
+          In CI you cannot spawn sub-agents. For Phase 2 (constraint review loop),
+          read web/.claude/agents/classic-rule-agent.md and apply that perspective yourself
+          when fixing constraint violations.
 
-          ## What to Create
-          1. **GDD** at web/docs/gdd/<mode-name>/gdd.md — game design overview
-          2. **PRD** at web/docs/prd/<mode-name>/prd.md — product requirements
-          3. **TRD** at web/docs/trd/<mode-name>/trd.md — technical requirements
-          4. **Phaser Scene** at web/src/game/scenes/<ModeName>Scene.ts
-          5. **Page route** at web/src/app/<mode-name>/page.tsx
-          6. **Controls component** at web/src/components/<ModeName>Controls.tsx
-
-          ## What to Modify
-          1. **web/src/components/PhaserGameInner.tsx**:
-             - Add new mode to the Props `mode` union type (line 13)
-             - Add SceneClass ternary (line 40)
-             - Add sceneKey ternary (line 41)
-          2. **web/src/game/config.ts**:
-             - Import the new Scene
-             - Add to the export statement
-          3. **web/src/app/page.tsx**:
-             - Add a Link card for the new mode on the home page (use a unique color from tailwind palette)
-
-          ## Rules
-          - Mode name should be kebab-case for URLs, PascalCase for classes
-          - Scene must extend Phaser.Scene with proper create/update lifecycle
-          - Scene constructor must accept bridgeId in data config
-          - Page must use dynamic import of PhaserGameInner with ssr: false
-          - Follow existing code style exactly
-          - Make sure the game is actually playable and fun
-          - npm run build must pass after your changes
+          ## Task
+          1. Find the keyword: look in web/docs/gdd/ for the most recently created directory
+          2. Follow game-mode-creator phases: constraint load → review loop → implement → build verify
           PROMPT_EOF
           )" --allowedTools "Read,Write,Edit,Glob,Grep,Bash" --max-turns 50
 
