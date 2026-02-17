@@ -21,14 +21,14 @@ export default function PlayControls({ bridgeId = 'play' }: { bridgeId?: string 
     if (hinting || isWin) return;
     const state = getGameBridge(bridgeId).solverState;
     if (state) requestHint(state as Parameters<typeof requestHint>[0]);
-  }, [hinting, isWin, requestHint]);
+  }, [bridgeId, hinting, isWin, requestHint]);
 
   // Listen for keyboard hint request
   useEffect(() => {
     const bridge = getGameBridge(bridgeId);
     bridge.on('requestHintFromUI', triggerHint);
     return () => bridge.off('requestHintFromUI', triggerHint);
-  }, [triggerHint]);
+  }, [bridgeId, triggerHint]);
 
   return (
     <div className="min-h-12 flex flex-wrap items-center justify-between px-2 sm:px-4 py-1 bg-zinc-800 border-b border-zinc-700 text-xs sm:text-sm">

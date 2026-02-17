@@ -10,7 +10,7 @@ function delay(ms: number): Promise<void> {
 }
 
 export default function ReplayControls({ bridgeId = 'replay' }: { bridgeId?: string }) {
-  const [recordings, setRecordings] = useState<GameRecording[]>([]);
+  const [recordings, setRecordings] = useState<GameRecording[]>(() => RecordingStorage.list());
   const [selectedId, setSelectedId] = useState<string>('');
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(500);
@@ -20,11 +20,6 @@ export default function ReplayControls({ bridgeId = 'replay' }: { bridgeId?: str
   const [info, setInfo] = useState<{ seed: number; sourceMode: string; result: string } | null>(null);
   const cancelRef = useRef(false);
   const playingRef = useRef(false);
-
-  // Load recordings list
-  useEffect(() => {
-    setRecordings(RecordingStorage.list());
-  }, []);
 
   // Subscribe to bridge events
   useEffect(() => {

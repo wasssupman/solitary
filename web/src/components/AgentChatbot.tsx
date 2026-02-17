@@ -18,23 +18,13 @@ export default function AgentChatbot() {
   const [status, setStatus] = useState<Status>('idle');
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
-  const [apiKey, setApiKey] = useState('');
-  const [showKeyInput, setShowKeyInput] = useState(false);
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem(API_KEY_STORAGE) ?? '');
+  const [showKeyInput, setShowKeyInput] = useState(() => !localStorage.getItem(API_KEY_STORAGE));
   const [runId, setRunId] = useState<number | null>(null);
   const [htmlUrl, setHtmlUrl] = useState<string | null>(null);
   const [commandType, setCommandType] = useState<CommandType>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  // Load API key from localStorage
-  useEffect(() => {
-    const stored = localStorage.getItem(API_KEY_STORAGE);
-    if (stored) {
-      setApiKey(stored);
-    } else {
-      setShowKeyInput(true);
-    }
-  }, []);
 
   // Auto-scroll to bottom
   useEffect(() => {
