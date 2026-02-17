@@ -45,7 +45,7 @@ jobs:
 
       - name: Generate game mode with Claude
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
         run: |
           claude -p "$(cat <<'PROMPT_EOF'
           You are creating a new game mode for a Klondike Solitaire web app.
