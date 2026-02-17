@@ -206,6 +206,13 @@ export default function AgentChatbot() {
                   Reset
                 </button>
               )}
+              <button
+                onClick={() => setOpen(false)}
+                className="text-zinc-500 hover:text-zinc-300"
+                aria-label="Close chatbot"
+              >
+                <span className="text-lg leading-none">{'\u2715'}</span>
+              </button>
             </div>
           </div>
 
