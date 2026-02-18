@@ -2,14 +2,16 @@ Solitaire — AI 솔버 기반 클론다이크 솔리테어
 
 ## 1. 프로젝트 개요
 * **프로젝트명**: Solitary
-* **핵심 기능**: NRPA 알고리즘 기반 AI 솔버를 탑재한 클론다이크 솔리테어 웹 게임
+* **핵심 기능**: 
+NRPA 알고리즘 기반 AI 솔버를 탑재한 클론다이크 솔리테어 웹 게임. 
+챗봇을 활용하여 신규 모드 생성, 게임 플레이 리팩토링 원격으로 진행.
 * **기술 스택**: Next.js 16, React 19, Phaser 3, TypeScript, Tailwind CSS 4, Web Worker
 * **배포 주소**: [solitaire-hunter.vercel.app](https://solitaire-hunter.vercel.app)
 
 ---
 
 ## 2. 개발 방법론: 100% AI 오케스트레이션 (Vibe Coding)
-이 프로젝트는 코드를 직접 작성하거나 수정하지 않고, **프롬프트 문서와 에이전트 워크플로우를 통한 '바이브 코딩(Vibe Coding)'으로 100% 개발**되었습니다.
+이 프로젝트는 **프롬프트 문서와 에이전트 워크플로우를 통한 '바이브 코딩(Vibe Coding)'으로 개발**되었습니다.
 
 * **개발 환경**: Claude Code + oh-my-claudecode (OMC)
 * **기획 프로세스**: 커스텀 에이전트 5종(game-design-orchestrator, classic-rule-agent, creative-rule-agent, doc-agent, game-mode-creator)으로 구성된 **Game Design Orchestrator** 시스템 구축.
